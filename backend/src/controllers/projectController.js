@@ -179,9 +179,51 @@ const addMember = async (req, res) => {
   }
 };
 
+const deleteProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user._id;
+
+    // Check if user is project creator
+    const project = await Project.findOne({
+      _id: id,
+      createdBy: userId
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found or you are not the creator'
+      });
+    }
+
+    // Delete related tasks and comments
+    const Task = require('../models/Task');
+    const Comment = require('../models/Comment');
+    
+    await Task.deleteMany({ project: id });
+    await Comment.deleteMany({ project: id });
+    
+    // Delete the project
+    await Project.findByIdAndDelete(id);
+
+    res.json({
+      success: true,
+      message: 'Project deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete project error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    });
+  }
+};
+
 module.exports = {
   createProject,
   getProjects,
   getProjectById,
-  addMember
+  addMember,
+  deleteProject
 };

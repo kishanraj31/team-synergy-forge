@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { apiService } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,17 +41,26 @@ const SignUp = () => {
     }
 
     try {
-      // TODO: Implement actual user registration
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast({
-        title: "Account created",
-        description: "Welcome to SynergySphere! You can now sign in.",
+      const response = await apiService.register({
+        username: `${formData.firstName} ${formData.lastName}`,
+        email: formData.email,
+        password: formData.password,
       });
-      navigate("/login");
-    } catch (error) {
+
+      if (response.success) {
+        toast({
+          title: "Account created",
+          description: "Welcome to SynergySphere! You can now sign in.",
+        });
+        navigate("/login");
+      } else {
+        throw new Error(response.message || 'Registration failed');
+      }
+    } catch (error: any) {
+      console.error('Registration error:', error);
       toast({
         title: "Sign up failed",
-        description: "There was an error creating your account. Please try again.",
+        description: error.message || "There was an error creating your account. Please try again.",
         variant: "destructive",
       });
     } finally {

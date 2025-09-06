@@ -1,6 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { createProject, getProjects, getProjectById, addMember } = require('../controllers/projectController');
+const { createProject, getProjects, getProjectById, addMember, deleteProject } = require('../controllers/projectController');
 const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
@@ -33,5 +33,6 @@ router.post('/', createProjectValidation, createProject);
 router.get('/', getProjects);
 router.get('/:id', getProjectById);
 router.post('/:id/members', addMemberValidation, addMember);
+router.delete('/:id', deleteProject);
 
 module.exports = router;

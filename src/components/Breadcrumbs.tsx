@@ -9,9 +9,7 @@ export function Breadcrumbs() {
   const breadcrumbNames: { [key: string]: string } = {
     dashboard: "Dashboard",
     projects: "Projects",
-    tasks: "Tasks", 
-    team: "Team",
-    settings: "Settings",
+    tasks: "Tasks",
   };
 
   return (
