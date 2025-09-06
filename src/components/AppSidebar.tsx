@@ -1,4 +1,4 @@
-import { Home, FolderOpen, CheckSquare, Users, Settings, LogOut } from "lucide-react";
+import { Home, FolderOpen, CheckSquare, LogOut } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   Sidebar,
@@ -19,8 +19,6 @@ const navigation = [
   { title: "Dashboard", url: "/dashboard", icon: Home },
   { title: "Projects", url: "/projects", icon: FolderOpen },
   { title: "Tasks", url: "/tasks", icon: CheckSquare },
-  { title: "Team", url: "/team", icon: Users },
-  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {

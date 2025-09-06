@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiService } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -145,19 +146,39 @@ const NewProject = () => {
     setIsLoading(true);
 
     try {
-      // TODO: Implement actual project creation API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      toast({
-        title: "Project Created Successfully",
-        description: `"${projectName}" has been initialized in the neural network.`,
+      // Check if user is authenticated
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        toast({
+          title: "Authentication Required",
+          description: "Please log in to create a project.",
+          variant: "destructive",
+        });
+        navigate("/login");
+        return;
+      }
+
+      // Create project via API
+      const response = await apiService.createProject({
+        name: projectName,
+        description: projectDescription,
       });
-      
-      navigate("/dashboard");
-    } catch (error) {
+
+      if (response.success) {
+        toast({
+          title: "Project Created Successfully",
+          description: `"${projectName}" has been initialized in the neural network.`,
+        });
+        
+        navigate("/projects", { replace: true });
+      } else {
+        throw new Error(response.message || 'Failed to create project');
+      }
+    } catch (error: any) {
+      console.error('Project creation error:', error);
       toast({
         title: "Project Creation Failed",
-        description: "Unable to initialize project. Please try again.",
+        description: error.message || "Unable to initialize project. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -395,6 +416,20 @@ const NewProject = () => {
                         <p className="text-gray-300 text-sm font-mono mt-1">{selectedTemplateData.description}</p>
                       </div>
                     )}
+
+                    {/* Requirements status */}
+                    <div className="p-3 bg-gray-800/50 rounded-lg text-xs font-mono text-gray-400">
+                      <div className="text-cyan-400 mb-2">REQUIREMENTS CHECKLIST:</div>
+                      <div className={selectedTemplate ? 'text-green-400' : 'text-red-400'}>
+                        {selectedTemplate ? '✓' : '✗'} Select a project template
+                      </div>
+                      <div className={projectName ? 'text-green-400' : 'text-red-400'}>
+                        {projectName ? '✓' : '✗'} Enter project name
+                      </div>
+                      <div className={projectDescription ? 'text-green-400' : 'text-red-400'}>
+                        {projectDescription ? '✓' : '✗'} Enter project description
+                      </div>
+                    </div>
 
                     <div className="flex space-x-4 pt-4">
                       <Button

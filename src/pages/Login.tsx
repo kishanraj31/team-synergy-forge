@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { apiService } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,17 +37,29 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // TODO: Implement actual authentication
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      toast({
-        title: "Login successful",
-        description: "Welcome to SynergySphere!",
+      const response = await apiService.login({
+        email,
+        password,
       });
-      navigate("/dashboard");
-    } catch (error) {
+
+      if (response.success && response.data?.token) {
+        // Store auth token
+        localStorage.setItem('authToken', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+        
+        toast({
+          title: "Login successful",
+          description: "Welcome to SynergySphere!",
+        });
+        navigate("/dashboard");
+      } else {
+        throw new Error(response.message || 'Login failed');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
       toast({
         title: "Login failed",
-        description: "Please check your credentials and try again.",
+        description: error.message || "Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {
