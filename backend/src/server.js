@@ -50,6 +50,16 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Root endpoint to prevent 404 errors
+app.get('/', (req, res) => {
+  res.json({
+    success: true,
+    message: 'SynergySphere API - Use the frontend at http://localhost:3000',
+    api_docs: 'http://localhost:3001/api',
+    health_check: 'http://localhost:3001/health'
+  });
+});
+
 // API routes
 app.use('/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
@@ -111,15 +121,19 @@ const startServer = async () => {
     // Test database connection
     const dbConnected = await testConnection();
     if (!dbConnected) {
-      console.error('❌ Failed to connect to database. Please check your configuration.');
-      process.exit(1);
-    }
-
-    // Initialize database
-    const dbInitialized = await initializeDatabase();
-    if (!dbInitialized) {
-      console.error('❌ Failed to initialize database. Please check your configuration.');
-      process.exit(1);
+      console.warn('⚠️  Database connection failed. Server will start in limited mode.');
+      console.warn('📝 To enable full functionality, please:');
+      console.warn('   1. Install and start MySQL');
+      console.warn('   2. Update backend/.env with correct database credentials');
+      console.warn('   3. Run: npm run setup-db');
+    } else {
+      // Initialize database
+      const dbInitialized = await initializeDatabase();
+      if (!dbInitialized) {
+        console.warn('⚠️  Database initialization failed. Server will start in limited mode.');
+      } else {
+        console.log('✅ Database connected and initialized successfully');
+      }
     }
 
     // Start HTTP server
@@ -128,6 +142,9 @@ const startServer = async () => {
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🔗 API Documentation: http://localhost:${PORT}/api`);
       console.log(`❤️  Health Check: http://localhost:${PORT}/health`);
+      if (!dbConnected) {
+        console.log(`⚠️  Database: Not connected (limited functionality)`);
+      }
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
