@@ -1,30 +1,37 @@
 const express = require('express');
-const {
-  createProject,
-  getProjects,
-  getProject,
-  addMember,
-  removeMember,
-  updateProject,
-  deleteProject
-} = require('../controllers/projectController');
-const { authMiddleware, projectMemberMiddleware, projectCreatorMiddleware } = require('../middleware/auth');
-const { validate, schemas } = require('../middleware/validation');
+const { body } = require('express-validator');
+const { createProject, getProjects, getProjectById, addMember } = require('../controllers/projectController');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// All routes require authentication
+// Apply authentication middleware to all routes
 router.use(authMiddleware);
 
-// Project CRUD routes
-router.post('/', validate(schemas.project), createProject);
-router.get('/', getProjects);
-router.get('/:id', projectMemberMiddleware, getProject);
-router.put('/:id', projectCreatorMiddleware, validate(schemas.project), updateProject);
-router.delete('/:id', projectCreatorMiddleware, deleteProject);
+// Validation rules
+const createProjectValidation = [
+  body('name')
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('Project name must be between 1 and 100 characters'),
+  body('description')
+    .optional()
+    .trim()
+    .isLength({ max: 500 })
+    .withMessage('Description must not exceed 500 characters')
+];
 
-// Project member management
-router.post('/:id/members', projectCreatorMiddleware, validate(schemas.addMember), addMember);
-router.delete('/:id/members/:memberId', projectCreatorMiddleware, removeMember);
+const addMemberValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email')
+];
+
+// Routes
+router.post('/', createProjectValidation, createProject);
+router.get('/', getProjects);
+router.get('/:id', getProjectById);
+router.post('/:id/members', addMemberValidation, addMember);
 
 module.exports = router;

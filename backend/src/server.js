@@ -13,7 +13,7 @@ const {
 } = require('./middleware/security');
 
 // Import database
-const { testConnection, initializeDatabase } = require('./config/database');
+const { connectDB, testConnection, initializeDatabase } = require('./config/database');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -22,7 +22,7 @@ const taskRoutes = require('./routes/tasks');
 const commentRoutes = require('./routes/comments');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Security middleware
 app.use(helmetConfig);
@@ -55,8 +55,8 @@ app.get('/', (req, res) => {
   res.json({
     success: true,
     message: 'SynergySphere API - Use the frontend at http://localhost:3000',
-    api_docs: 'http://localhost:3001/api',
-    health_check: 'http://localhost:3001/health'
+    api_docs: `http://localhost:${PORT}/api`,
+    health_check: `http://localhost:${PORT}/health`
   });
 });
 
@@ -76,24 +76,18 @@ app.get('/api', (req, res) => {
       auth: {
         'POST /auth/register': 'Register new user',
         'POST /auth/login': 'Login user',
-        'GET /auth/profile': 'Get user profile (protected)',
-        'PUT /auth/profile': 'Update user profile (protected)'
+        'GET /auth/profile': 'Get user profile (protected)'
       },
       projects: {
         'POST /api/projects': 'Create new project (protected)',
         'GET /api/projects': 'Get user projects (protected)',
         'GET /api/projects/:id': 'Get project details (protected)',
-        'PUT /api/projects/:id': 'Update project (protected, creator only)',
-        'DELETE /api/projects/:id': 'Delete project (protected, creator only)',
-        'POST /api/projects/:id/members': 'Add project member (protected, creator only)',
-        'DELETE /api/projects/:id/members/:memberId': 'Remove project member (protected, creator only)'
+        'POST /api/projects/:id/members': 'Add project member (protected, creator only)'
       },
       tasks: {
         'POST /api/tasks/projects/:id/tasks': 'Create task (protected)',
         'GET /api/tasks/projects/:id/tasks': 'Get project tasks (protected)',
-        'GET /api/tasks/projects/:id/tasks/status': 'Get tasks by status (protected)',
         'GET /api/tasks/my-tasks': 'Get my assigned tasks (protected)',
-        'GET /api/tasks/:id': 'Get single task (protected)',
         'PUT /api/tasks/:id': 'Update task (protected)',
         'DELETE /api/tasks/:id': 'Delete task (protected)'
       },
@@ -118,14 +112,14 @@ app.use(errorHandler);
 // Start server
 const startServer = async () => {
   try {
-    // Test database connection
-    const dbConnected = await testConnection();
+    // Connect to MongoDB
+    const dbConnected = await connectDB();
     if (!dbConnected) {
       console.warn('⚠️  Database connection failed. Server will start in limited mode.');
       console.warn('📝 To enable full functionality, please:');
-      console.warn('   1. Install and start MySQL');
+      console.warn('   1. Install and start MongoDB');
       console.warn('   2. Update backend/.env with correct database credentials');
-      console.warn('   3. Run: npm run setup-db');
+      console.warn('   3. Restart the server');
     } else {
       // Initialize database
       const dbInitialized = await initializeDatabase();

@@ -1,22 +1,41 @@
 const express = require('express');
-const { register, login, getProfile, updateProfile } = require('../controllers/authController');
+const { body } = require('express-validator');
+const { register, login, getProfile } = require('../controllers/authController');
 const { authMiddleware } = require('../middleware/auth');
-const { validate, schemas } = require('../middleware/validation');
-const { authLimiter } = require('../middleware/security');
 
 const router = express.Router();
 
-// Apply rate limiting to auth routes
-router.use(authLimiter);
+// Validation rules
+const registerValidation = [
+  body('username')
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be between 3 and 30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long')
+    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+    .withMessage('Password must contain at least one lowercase letter, one uppercase letter, and one number')
+];
 
-// Public routes
-router.post('/register', validate(schemas.register), register);
-router.post('/login', validate(schemas.login), login);
+const loginValidation = [
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('password')
+    .notEmpty()
+    .withMessage('Password is required')
+];
 
-// Protected routes
-router.use(authMiddleware); // All routes below require authentication
-
-router.get('/profile', getProfile);
-router.put('/profile', validate(schemas.register), updateProfile);
+// Routes
+router.post('/register', registerValidation, register);
+router.post('/login', loginValidation, login);
+router.get('/profile', authMiddleware, getProfile);
 
 module.exports = router;

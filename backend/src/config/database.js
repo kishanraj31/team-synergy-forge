@@ -1,27 +1,15 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+const mongoose = require('mongoose');
 
-// Database configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'synergysphere',
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0
-};
-
-// Create connection pool
-const pool = mysql.createPool(dbConfig);
-
-// Test database connection
-const testConnection = async () => {
+const connectDB = async () => {
   try {
-    const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
-    connection.release();
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/synergysphere';
+    
+    const conn = await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
+
+    console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
@@ -29,23 +17,33 @@ const testConnection = async () => {
   }
 };
 
-// Initialize database and create tables if they don't exist
+const testConnection = async () => {
+  try {
+    if (mongoose.connection.readyState === 1) {
+      return true;
+    }
+    return await connectDB();
+  } catch (error) {
+    console.error('❌ Database connection test failed:', error.message);
+    return false;
+  }
+};
+
 const initializeDatabase = async () => {
   try {
-    // First connect without specifying database to create it
-    const tempConfig = { ...dbConfig };
-    delete tempConfig.database;
-    const tempPool = mysql.createPool(tempConfig);
-    
-    // Create database if it doesn't exist
-    await tempPool.execute(`CREATE DATABASE IF NOT EXISTS ${process.env.DB_NAME || 'synergysphere'}`);
-    await tempPool.end();
-    
-    // Now connect to the specific database
-    const connection = await pool.getConnection();
-    console.log('✅ Database initialized successfully');
-    connection.release();
-    
+    // Create indexes for better performance
+    const User = require('../models/User');
+    const Project = require('../models/Project');
+    const Task = require('../models/Task');
+    const Comment = require('../models/Comment');
+
+    // Create indexes
+    await User.createIndexes();
+    await Project.createIndexes();
+    await Task.createIndexes();
+    await Comment.createIndexes();
+
+    console.log('✅ Database indexes created successfully');
     return true;
   } catch (error) {
     console.error('❌ Database initialization failed:', error.message);
@@ -54,7 +52,7 @@ const initializeDatabase = async () => {
 };
 
 module.exports = {
-  pool,
+  connectDB,
   testConnection,
   initializeDatabase
 };

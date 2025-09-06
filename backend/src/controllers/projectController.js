@@ -1,164 +1,149 @@
-const { pool } = require('../config/database');
+const { validationResult } = require('express-validator');
+const Project = require('../models/Project');
+const User = require('../models/User');
 
-// Create new project
 const createProject = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
+
     const { name, description } = req.body;
-    const createdByUserId = req.user.id;
+    const createdBy = req.user._id;
 
-    // Create project
-    const [result] = await pool.execute(
-      'INSERT INTO Projects (name, description, created_by_user_id) VALUES (?, ?, ?)',
-      [name, description, createdByUserId]
-    );
+    const project = new Project({
+      name,
+      description,
+      createdBy,
+      members: [createdBy] // Creator is automatically a member
+    });
 
-    const projectId = result.insertId;
-
-    // Add creator as project member
-    await pool.execute(
-      'INSERT INTO ProjectMembers (user_id, project_id) VALUES (?, ?)',
-      [createdByUserId, projectId]
-    );
-
-    // Get created project with creator info
-    const [projects] = await pool.execute(`
-      SELECT p.*, u.username as created_by_username, u.email as created_by_email
-      FROM Projects p
-      LEFT JOIN Users u ON p.created_by_user_id = u.id
-      WHERE p.id = ?
-    `, [projectId]);
+    await project.save();
+    await project.populate('createdBy', 'username email');
+    await project.populate('members', 'username email');
 
     res.status(201).json({
       success: true,
       message: 'Project created successfully',
-      data: {
-        project: projects[0]
-      }
+      data: { project }
     });
-
-    console.log(`New project created: ${name} by user ${req.user.username}`);
   } catch (error) {
     console.error('Create project error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error creating project'
+      message: 'Internal server error'
     });
   }
 };
 
-// Get all projects for authenticated user
 const getProjects = async (req, res) => {
   try {
-    const userId = req.user.id;
-
-    const [projects] = await pool.execute(`
-      SELECT DISTINCT p.*, u.username as created_by_username, u.email as created_by_email
-      FROM Projects p
-      LEFT JOIN Users u ON p.created_by_user_id = u.id
-      LEFT JOIN ProjectMembers pm ON p.id = pm.project_id
-      WHERE pm.user_id = ?
-      ORDER BY p.created_at DESC
-    `, [userId]);
+    const userId = req.user._id;
+    
+    const projects = await Project.find({
+      members: userId
+    })
+    .populate('createdBy', 'username email')
+    .populate('members', 'username email')
+    .sort({ createdAt: -1 });
 
     res.json({
       success: true,
-      data: {
-        projects
-      }
+      data: { projects }
     });
   } catch (error) {
     console.error('Get projects error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error getting projects'
+      message: 'Internal server error'
     });
   }
 };
 
-// Get single project with details
-const getProject = async (req, res) => {
+const getProjectById = async (req, res) => {
   try {
-    const projectId = req.params.id;
-    const userId = req.user.id;
+    const { id } = req.params;
+    const userId = req.user._id;
 
-    // Get project details
-    const [projects] = await pool.execute(`
-      SELECT p.*, u.username as created_by_username, u.email as created_by_email
-      FROM Projects p
-      LEFT JOIN Users u ON p.created_by_user_id = u.id
-      WHERE p.id = ?
-    `, [projectId]);
+    const project = await Project.findOne({
+      _id: id,
+      members: userId
+    })
+    .populate('createdBy', 'username email')
+    .populate('members', 'username email');
 
-    if (projects.length === 0) {
+    if (!project) {
       return res.status(404).json({
         success: false,
-        message: 'Project not found'
+        message: 'Project not found or access denied'
       });
     }
 
-    const project = projects[0];
-
-    // Get project members
-    const [members] = await pool.execute(`
-      SELECT u.id, u.username, u.email, pm.joined_at
-      FROM ProjectMembers pm
-      JOIN Users u ON pm.user_id = u.id
-      WHERE pm.project_id = ?
-      ORDER BY pm.joined_at ASC
-    `, [projectId]);
-
     // Get project tasks
-    const [tasks] = await pool.execute(`
-      SELECT t.*, u.username as assigned_to_username, u.email as assigned_to_email
-      FROM Tasks t
-      LEFT JOIN Users u ON t.assigned_to_user_id = u.id
-      WHERE t.project_id = ?
-      ORDER BY t.created_at DESC
-    `, [projectId]);
+    const Task = require('../models/Task');
+    const tasks = await Task.find({ project: id })
+      .populate('assignee', 'username email')
+      .sort({ createdAt: -1 });
 
-    // Get recent comments (last 10)
-    const [comments] = await pool.execute(`
-      SELECT c.*, u.username, u.email
-      FROM Comments c
-      JOIN Users u ON c.user_id = u.id
-      WHERE c.project_id = ?
-      ORDER BY c.created_at DESC
-      LIMIT 10
-    `, [projectId]);
+    // Get project comments
+    const Comment = require('../models/Comment');
+    const comments = await Comment.find({ project: id })
+      .populate('user', 'username email')
+      .sort({ createdAt: -1 });
 
     res.json({
       success: true,
       data: {
-        project: {
-          ...project,
-          members,
-          tasks,
-          comments
-        }
+        project,
+        tasks,
+        comments
       }
     });
   } catch (error) {
-    console.error('Get project error:', error);
+    console.error('Get project by ID error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error getting project'
+      message: 'Internal server error'
     });
   }
 };
 
-// Add member to project
 const addMember = async (req, res) => {
   try {
-    const projectId = req.params.id;
-    const { user_id } = req.body;
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: errors.array()
+      });
+    }
 
-    // Check if user exists
-    const [users] = await pool.execute(
-      'SELECT id, username, email FROM Users WHERE id = ?',
-      [user_id]
-    );
+    const { id } = req.params;
+    const { email } = req.body;
+    const userId = req.user._id;
 
-    if (users.length === 0) {
+    // Check if user is project creator
+    const project = await Project.findOne({
+      _id: id,
+      createdBy: userId
+    });
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: 'Project not found or you are not the creator'
+      });
+    }
+
+    // Find user by email
+    const userToAdd = await User.findOne({ email });
+    if (!userToAdd) {
       return res.status(404).json({
         success: false,
         message: 'User not found'
@@ -166,126 +151,30 @@ const addMember = async (req, res) => {
     }
 
     // Check if user is already a member
-    const [existingMembers] = await pool.execute(
-      'SELECT * FROM ProjectMembers WHERE project_id = ? AND user_id = ?',
-      [projectId, user_id]
-    );
-
-    if (existingMembers.length > 0) {
-      return res.status(409).json({
+    if (project.members.includes(userToAdd._id)) {
+      return res.status(400).json({
         success: false,
         message: 'User is already a member of this project'
       });
     }
 
-    // Add user as project member
-    await pool.execute(
-      'INSERT INTO ProjectMembers (user_id, project_id) VALUES (?, ?)',
-      [user_id, projectId]
-    );
+    // Add user to project
+    project.members.push(userToAdd._id);
+    await project.save();
 
-    res.status(201).json({
+    await project.populate('createdBy', 'username email');
+    await project.populate('members', 'username email');
+
+    res.json({
       success: true,
-      message: 'Member added to project successfully',
-      data: {
-        member: users[0]
-      }
+      message: 'Member added successfully',
+      data: { project }
     });
-
-    console.log(`User ${users[0].username} added to project ${projectId}`);
   } catch (error) {
     console.error('Add member error:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error adding member'
-    });
-  }
-};
-
-// Remove member from project
-const removeMember = async (req, res) => {
-  try {
-    const projectId = req.params.id;
-    const memberId = req.params.memberId;
-
-    // Check if member exists
-    const [members] = await pool.execute(
-      'SELECT * FROM ProjectMembers WHERE project_id = ? AND user_id = ?',
-      [projectId, memberId]
-    );
-
-    if (members.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Member not found in this project'
-      });
-    }
-
-    // Remove member
-    await pool.execute(
-      'DELETE FROM ProjectMembers WHERE project_id = ? AND user_id = ?',
-      [projectId, memberId]
-    );
-
-    res.json({
-      success: true,
-      message: 'Member removed from project successfully'
-    });
-
-    console.log(`User ${memberId} removed from project ${projectId}`);
-  } catch (error) {
-    console.error('Remove member error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error removing member'
-    });
-  }
-};
-
-// Update project
-const updateProject = async (req, res) => {
-  try {
-    const projectId = req.params.id;
-    const { name, description } = req.body;
-
-    await pool.execute(
-      'UPDATE Projects SET name = ?, description = ? WHERE id = ?',
-      [name, description, projectId]
-    );
-
-    res.json({
-      success: true,
-      message: 'Project updated successfully'
-    });
-
-    console.log(`Project ${projectId} updated by user ${req.user.username}`);
-  } catch (error) {
-    console.error('Update project error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error updating project'
-    });
-  }
-};
-
-// Delete project
-const deleteProject = async (req, res) => {
-  try {
-    const projectId = req.params.id;
-
-    await pool.execute('DELETE FROM Projects WHERE id = ?', [projectId]);
-
-    res.json({
-      success: true,
-      message: 'Project deleted successfully'
-    });
-
-    console.log(`Project ${projectId} deleted by user ${req.user.username}`);
-  } catch (error) {
-    console.error('Delete project error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Server error deleting project'
+      message: 'Internal server error'
     });
   }
 };
@@ -293,9 +182,6 @@ const deleteProject = async (req, res) => {
 module.exports = {
   createProject,
   getProjects,
-  getProject,
-  addMember,
-  removeMember,
-  updateProject,
-  deleteProject
+  getProjectById,
+  addMember
 };
