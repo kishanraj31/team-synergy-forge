@@ -22,7 +22,7 @@ const taskRoutes = require('./routes/tasks');
 const commentRoutes = require('./routes/comments');
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3003;
 
 // Security middleware
 app.use(helmetConfig);
