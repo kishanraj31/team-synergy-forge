@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
+import NewProject from "./pages/NewProject";
 import Projects from "./pages/Projects";
 import Tasks from "./pages/Tasks";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="login" element={<Login />} />
             <Route path="signup" element={<SignUp />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="new-project" element={<NewProject />} />
             <Route path="projects" element={<Projects />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="*" element={<NotFound />} />
