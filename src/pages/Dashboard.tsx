@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Code, Database, Network, Terminal, Cpu, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +17,7 @@ interface Project {
 }
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const [projects] = useState<Project[]>([
     {
       id: "1",
@@ -118,7 +120,10 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold text-white font-mono">System Dashboard</h1>
             <p className="text-gray-300 mt-1 font-mono">Neural network status: ONLINE | Last sync: {new Date().toLocaleTimeString()}</p>
           </div>
-          <Button className="tech-button bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono">
+          <Button 
+            onClick={() => navigate("/new-project")}
+            className="tech-button bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono"
+          >
             <Plus className="mr-2 h-4 w-4" />
             New Project
           </Button>
@@ -180,7 +185,10 @@ const Dashboard = () => {
           <div className="text-center py-12">
             <h3 className="text-lg font-medium text-white mb-2 font-mono">No Active Projects</h3>
             <p className="text-gray-300 mb-4 font-mono">Initialize your first neural network process</p>
-            <Button className="tech-button bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono">
+            <Button 
+              onClick={() => navigate("/new-project")}
+              className="tech-button bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-mono"
+            >
               <Plus className="mr-2 h-4 w-4" />
               Create Project
             </Button>
